@@ -1,0 +1,62 @@
+version: '3.4'
+
+services:
+  postgres:
+    image: postgres
+    restart: always
+    environment:
+      ASPNETCORE_ENVIRONMENT: Development
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: postgres
+      POSTGRES_DB: coffeeshop
+
+  postgres.eventstore:
+    image: postgres
+    restart: always
+    environment:
+      ASPNETCORE_ENVIRONMENT: Development
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: postgres
+      POSTGRES_DB: coffeeshop-event-store
+
+  pgadmin:
+    image: dpage/pgadmin4
+    restart: always
+    environment:
+      PGADMIN_DEFAULT_EMAIL: admin@admin.com
+      PGADMIN_DEFAULT_PASSWORD: postgres
+    ports:
+      - 5050:80
+    
+  coffeeshop:
+    image: ${DOCKER_REGISTRY-}coffeeshopapi
+    restart: always
+    build:
+      context: .
+      dockerfile: server/src/CoffeeShop.Api/Dockerfile
+    environment:
+      ConnectionStrings:DefaultConnection: "Host=postgres;Port=5432;Database=coffeeshop;User Id=postgres;Password=postgres"
+      EventStore.ConnectionString: "Host=postgres;Port=5432;Database=coffeeshop-event-store;User Id=postgres;Password=postgres"
+      ASPNETCORE_ENVIRONMENT: Development
+      ASPNETCORE_URLS: http://0.0.0.0:80
+    ports:
+      - "5210:80"
+    depends_on:
+      - postgres
+      - postgres.eventstore
+
+  client:
+    container_name: client
+    restart: always
+    build:
+      context: ./client
+      dockerfile: Dockerfile
+    stdin_open: true
+    ports:
+      - 3001:3000
+    #volumes:
+    #  - '.:/app'
+    #  - '/app/node_modules'
+    depends_on:
+      - postgres
+      - postgres.eventstore
